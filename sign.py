@@ -89,29 +89,67 @@ for label in unique_labels:
     plt.imshow(image, cmap='gray')
     
 # Show the plot
-plt.show()
+# plt.show()
 
 # Initialize placeholders 
-# x = tf.keras.Input(shape=(28, 28))
-# y = tf.keras.Input(shape=(), dtype=tf.int32)
+x = tf.keras.Input(shape=(28, 28))
+y = tf.keras.Input(shape=(), dtype=tf.int32)
 
-# # Flatten the input data
-# images_flat = tf.contrib.layers.flatten(x)
+# Flatten the input data
+images_flat = tf.keras.layers.Flatten()(x)
 
-# # Fully connected layer 
-# logits = tf.contrib.layers.fully_connected(images_flat, 62, tf.nn.relu)
-# # Define a loss function 
-# loss = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(labels = y, logits = logits))
-# # Define an optimizer 
-# train_op = tf.train.AdamOptimizer(learning_rate=0.001).minimize(loss)
+# Define the neural network model
+model = tf.keras.Sequential([
+  tf.keras.layers.Dense(128, activation=tf.nn.relu),
+  tf.keras.layers.Dense(62)
+])
 
-# # Convert logits to label indexes
-# correct_pred = tf.argmax(logits, 1)
+# Compute the logits
+logits = model(images_flat)
 
-# # Define an accuracy metric
-# accuracy = tf.reduce_mean(tf.cast(correct_pred, tf.float32))
+# Define the loss function
+loss = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(labels=y, logits=logits))
+
+# Define the optimizer
+optimizer = tf.keras.optimizers.Adam(learning_rate0=0.001)
+
+# Define the training operation
+train_op = optimizer.minimize(loss, var_list=model.trainable_variables)
+
+# Compute the accuracy
+correct_pred = tf.argmax(logits, 1)
+accuracy = tf.reduce_mean(tf.cast(correct_pred, tf.float32))
+
+# Define a loss function
+loss = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(labels = y, 
+                                                                    logits = logits))
 
 # print("images_flat: ", images_flat)
 # print("logits: ", logits)
 # print("loss: ", loss)
 # print("predicted_labels: ", correct_pred)
+
+# Load the data
+(train_images, train_labels), (test_images, test_labels) = tf.keras.datasets.mnist.load_data()
+
+# Normalize the data
+train_images = train_images / 255.0
+test_images = test_images / 255.0
+
+# Define the batch size and number of epochs
+batch_size = 32
+num_epochs = 10
+
+# Create a dataset from the input and output data
+train_dataset = tf.data.Dataset.from_tensor_slices((train_images, train_labels)).batch(batch_size)
+
+# Train the model
+for epoch in range(num_epochs):
+    for x_batch, y_batch in train_dataset:
+        with tf.GradientTape() as tape:
+            logits = model(x_batch, training=True)
+            loss_value = loss(y_batch, logits)
+        grads = tape.gradient(loss_value, model.trainable_variables)
+        optimizer.apply_gradients(zip(grads, model.trainable_variables))
+    acc = accuracy(test_images, test_labels)
+    print("Epoch {}/{} - loss: {:.4f} - accuracy: {:.4f}".format(epoch+1, num_epochs, loss_value, acc))
